@@ -8,8 +8,10 @@ import { StatsBar } from "@/components/leads/StatsBar";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { ExportButtons } from "@/components/leads/ExportButtons";
 import { PROVINCES } from "@/lib/argentina";
-import { CATEGORIES, getCategoryLabel } from "@/lib/categories";
-import type { Lead } from "@/lib/types";
+import { CATEGORIES } from "@/lib/categories";
+import type { LeadWithSources } from "@/lib/types";
+
+const PAGE_SIZE = 50;
 
 interface Stats {
   total: number;
@@ -19,19 +21,27 @@ interface Stats {
 }
 
 export default function LeadsPage() {
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [leads, setLeads] = useState<LeadWithSources[]>([]);
   const [stats, setStats] = useState<Stats>({
     total: 0,
     withWebsite: 0,
     withPhone: 0,
     totalSearches: 0,
   });
+  const [filteredTotal, setFilteredTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const [q, setQ] = useState("");
   const [province, setProvince] = useState("");
+  const [city, setCity] = useState("");
   const [category, setCategory] = useState("");
   const [minRating, setMinRating] = useState("");
+  const [page, setPage] = useState(1);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setPage(1);
+  }, [q, province, city, category, minRating]);
 
   useEffect(() => {
     const handle = setTimeout(async () => {
@@ -39,19 +49,26 @@ export default function LeadsPage() {
       const params = new URLSearchParams();
       if (q) params.set("q", q);
       if (province) params.set("province", province);
+      if (city) params.set("city", city);
       if (category) params.set("category", category);
       if (minRating) params.set("minRating", minRating);
+      params.set("page", String(page));
 
       const res = await fetch(`/api/leads?${params.toString()}`);
       if (res.ok) {
-        const data = (await res.json()) as { leads: Lead[]; stats: Stats };
+        const data = (await res.json()) as {
+          leads: LeadWithSources[];
+          stats: Stats;
+          filteredTotal: number;
+        };
         setLeads(data.leads);
         setStats(data.stats);
+        setFilteredTotal(data.filteredTotal);
       }
       setLoading(false);
     }, 250);
     return () => clearTimeout(handle);
-  }, [q, province, category, minRating]);
+  }, [q, province, city, category, minRating, page]);
 
   const categories = useMemo(() => {
     const slugs = new Set<string>();
@@ -60,6 +77,8 @@ export default function LeadsPage() {
       a.label_es.localeCompare(b.label_es, "es"),
     );
   }, [leads]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTotal / PAGE_SIZE));
 
   return (
     <div className="px-6 py-6 space-y-6 max-w-[1400px] mx-auto w-full">
@@ -95,6 +114,15 @@ export default function LeadsPage() {
               </option>
             ))}
           </Select>
+        </div>
+        <div className="space-y-1 min-w-[160px]">
+          <Label htmlFor="city">Ciudad</Label>
+          <Input
+            id="city"
+            placeholder="Ciudad…"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+          />
         </div>
         <div className="space-y-1 min-w-[200px]">
           <Label>Categoría</Label>
@@ -134,6 +162,29 @@ export default function LeadsPage() {
       ) : (
         <LeadsTable leads={leads} />
       )}
+
+      <div className="flex items-center justify-between text-sm text-zinc-500">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1 || loading}
+          className="px-3 py-1.5 rounded border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Anterior
+        </button>
+        <span>
+          Página {page} de {totalPages}
+          {filteredTotal > 0 && (
+            <span className="ml-2 text-zinc-400">({filteredTotal} resultados)</span>
+          )}
+        </span>
+        <button
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={page >= totalPages || loading}
+          className="px-3 py-1.5 rounded border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Siguiente
+        </button>
+      </div>
     </div>
   );
 }
