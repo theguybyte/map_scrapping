@@ -1,0 +1,10 @@
+-- Add digital/creative agency categories
+
+insert into public.categories (slug, label_es, source_aliases) values
+  ('marketing_agency', 'Agencia de marketing / Publicidad',
+   '["Agencia de marketing","Agencia de marketing digital","Marketing digital","Publicidad","Agencia de publicidad","Branding","Agencia de branding","Consultora de marketing","Consultoría de marketing","Consultoría marketing","Agencia de comunicación","Comunicación publicitaria","Marketing y publicidad","Agencia creativa","Marketing","Estrategia de marketing","Agencia BTL","Agencia ATL","Agencia 360","Media agency","Publicidad y marketing","Comunicación y marketing","Agencia de medios","Performance marketing","Growth marketing","Inbound marketing","Marketing de contenidos","Community management","Gestión de redes sociales","Social media","Agencia de redes sociales","SEO","SEM","Posicionamiento web","Agencia SEO","Agencia SEM"]'),
+  ('design_agency',    'Agencia de diseño / Estudio creativo',
+   '["Agencia de diseño","Diseño gráfico","Agencia de diseño gráfico","Estudio de diseño","Estudio creativo","Diseño web","Diseño UX","Diseño UI","Diseño UX/UI","Diseño publicitario","Diseño editorial","Diseño y comunicación","Agencia de diseño y comunicación","Diseño digital","Identidad visual","Identidad corporativa","Diseño de marca","Branding y diseño","Diseño de logo","Diseño de packaging","Packaging","Motion graphics","Ilustración","Diseño de interiores","Interiorismo","Arquitectura de interiores","Decoración","Decoración de interiores"]'),
+  ('web_development',  'Desarrollo web / Software',
+   '["Desarrollo web","Agencia de desarrollo web","Software","Desarrollo de software","Programación","Agencia de software","Empresa de software","Tecnología","Startup tecnológica","Startup de tecnología","App development","Desarrollo de apps","Desarrollo mobile","Apps móviles","E-commerce","Tienda online","Soluciones digitales","Transformación digital","Consultoría IT","IT","Sistemas","Empresa de sistemas","Desarrollo a medida"]')
+on conflict (slug) do nothing;
