@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolveCityCoords } from "@/lib/geocode";
 import { startScrapeRun } from "@/lib/apify";
+import { ApifyTokenMissingError } from "@/lib/settings";
 import type { ScrapeRequestBody } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid body" }, { status: 400 });
   }
 
-  const { province, city, category, radiusKm } = body;
+  const { province, city, category, radiusKm, scrapeContacts } = body;
   if (!province || !city || !category || !radiusKm) {
     return NextResponse.json(
       { error: "province, city, category, radiusKm are required" },
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
       radiusKm,
       centerLat: coords.lat,
       centerLng: coords.lng,
+      scrapeContacts,
     });
     await admin
       .from("searches")
@@ -90,6 +92,12 @@ export async function POST(request: Request) {
       .from("searches")
       .update({ status: "failed", error_message: message })
       .eq("id", search.id);
+    if (err instanceof ApifyTokenMissingError) {
+      return NextResponse.json(
+        { error: "apify_token_not_configured" },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
