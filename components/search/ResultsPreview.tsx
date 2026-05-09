@@ -7,12 +7,14 @@ interface ResultsPreviewProps {
   leads: Lead[];
   status: "idle" | "running" | "completed" | "failed";
   errorMessage?: string | null;
+  progress?: { found: number; target: number } | null;
 }
 
 export function ResultsPreview({
   leads,
   status,
   errorMessage,
+  progress,
 }: ResultsPreviewProps) {
   if (status === "idle") {
     return (
@@ -23,12 +25,35 @@ export function ResultsPreview({
   }
 
   if (status === "running") {
+    const found = progress?.found ?? 0;
+    const target = progress?.target ?? 0;
+    const pct =
+      target > 0 ? Math.min(100, Math.round((found / target) * 100)) : null;
     return (
       <div className="h-full flex flex-col items-center justify-center gap-3 text-sm text-zinc-500">
-        <div className="h-1.5 w-48 overflow-hidden rounded-full bg-zinc-200">
-          <div className="h-full w-1/3 animate-pulse rounded-full bg-purple-500" />
+        <div className="h-1.5 w-64 overflow-hidden rounded-full bg-zinc-200">
+          {pct != null ? (
+            <div
+              className="h-full rounded-full bg-purple-500 transition-[width] duration-500"
+              style={{ width: `${Math.max(2, pct)}%` }}
+            />
+          ) : (
+            <div className="h-full w-1/3 animate-pulse rounded-full bg-purple-500" />
+          )}
         </div>
-        <p>Apify está procesando tu búsqueda…</p>
+        <p>
+          Apify está procesando tu búsqueda…{" "}
+          {target > 0 ? (
+            <span className="text-zinc-700 font-medium">
+              {found} / {target}
+              {pct != null && (
+                <span className="text-zinc-400 font-normal"> ({pct}%)</span>
+              )}
+            </span>
+          ) : (
+            <span className="text-zinc-400">iniciando…</span>
+          )}
+        </p>
       </div>
     );
   }

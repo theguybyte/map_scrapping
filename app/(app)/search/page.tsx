@@ -21,6 +21,7 @@ export default function SearchPage() {
     city: defaultProv.capital,
     category: "",
     radiusKm: defaultProv.defaultRadius,
+    scrapeContacts: false,
   });
   const [center, setCenter] = useState({
     lat: defaultProv.lat,
@@ -32,6 +33,10 @@ export default function SearchPage() {
   const [status, setStatus] =
     useState<"idle" | "running" | "completed" | "failed">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{
+    found: number;
+    target: number;
+  } | null>(null);
 
   const [cacheHit, setCacheHit] = useState<{
     searchId: string;
@@ -49,13 +54,19 @@ export default function SearchPage() {
   const formRef = useRef(form);
   formRef.current = form;
 
-  // Recenter map when province changes (use hardcoded coords)
-  useEffect(() => {
-    const prov = getProvince(form.province);
-    if (prov && form.city.toLowerCase() === prov.capital.toLowerCase()) {
-      setCenter({ lat: prov.lat, lng: prov.lng });
+  // Recenter synchronously with form changes so center + radiusKm land in the
+  // same render — otherwise MapRecenter fires fitBounds twice (stale center +
+  // new radius, then new center) and Leaflet's animated pan can strand the
+  // viewport on the previous province.
+  function handleFormChange(next: SearchFormState) {
+    if (next.province !== form.province || next.city !== form.city) {
+      const prov = getProvince(next.province);
+      if (prov && next.city.toLowerCase() === prov.capital.toLowerCase()) {
+        setCenter({ lat: prov.lat, lng: prov.lng });
+      }
     }
-  }, [form.province, form.city]);
+    setForm(next);
+  }
 
   // Geocode non-capital city (debounced)
   useEffect(() => {
@@ -168,17 +179,24 @@ export default function SearchPage() {
           setErrorMsg("No se pudo consultar el estado.");
           return;
         }
-        const data = (await res.json()) as { search: Search; leads: Lead[] };
+        const data = (await res.json()) as {
+          search: Search;
+          leads: Lead[];
+          progress: { found: number; target: number } | null;
+        };
         setSearch(data.search);
         setLeads(data.leads);
+        setProgress(data.progress);
 
         if (data.search.status === "completed") {
           setStatus("completed");
+          setProgress(null);
           return;
         }
         if (data.search.status === "failed") {
           setStatus("failed");
           setErrorMsg(data.search.error_message);
+          setProgress(null);
           return;
         }
         pollTimer.current = setTimeout(tick, 3500);
@@ -198,6 +216,7 @@ export default function SearchPage() {
     setErrorMsg(null);
     setLeads([]);
     setSearch(null);
+    setProgress(null);
 
     // If we have a cache hit and user didn't explicitly force re-scrape, just load it
     if (cacheHit && !force) {
@@ -222,6 +241,7 @@ export default function SearchPage() {
           city: form.city,
           category: form.category,
           radiusKm: form.radiusKm,
+          scrapeContacts: form.scrapeContacts,
         }),
       });
       const data = (await res.json()) as {
@@ -261,7 +281,7 @@ export default function SearchPage() {
     <div className="flex h-[calc(100vh-3.5rem)]">
       <SearchSidebar
         state={form}
-        onChange={setForm}
+        onChange={handleFormChange}
         onStart={handleStart}
         isRunning={isRunning}
         cacheHit={cacheHit}
@@ -299,6 +319,7 @@ export default function SearchPage() {
             leads={leads}
             status={status}
             errorMessage={errorMsg}
+            progress={progress}
           />
         </div>
       </div>

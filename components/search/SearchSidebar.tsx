@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Play, Clock, Loader2, Info } from "lucide-react";
+import { Play, Clock, Loader2, Info, Mail } from "lucide-react";
 import { PROVINCES } from "@/lib/argentina";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ export interface SearchFormState {
   city: string;
   category: string;
   radiusKm: number;
+  scrapeContacts: boolean;
 }
 
 interface CacheHit {
@@ -125,6 +126,28 @@ export function SearchSidebar({
             <Info className="h-3 w-3 mt-0.5 shrink-0" />
             <span>Elegí un radio suficiente desde el principio — ampliar más tarde implica re-scrapear y consume créditos de Apify.</span>
           </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="flex items-start gap-2 cursor-pointer group">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer"
+              checked={state.scrapeContacts}
+              onChange={(e) =>
+                onChange({ ...state, scrapeContacts: e.target.checked })
+              }
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-sm text-zinc-900">
+                <Mail className="h-3.5 w-3.5 text-zinc-500" />
+                Buscar emails y redes
+              </div>
+              <p className="text-[11px] text-zinc-500 mt-0.5">
+                Visita el sitio web de cada negocio. Más lento y consume créditos extra de Apify (~30–50% de aciertos).
+              </p>
+            </div>
+          </label>
         </div>
 
         {cacheHit && (

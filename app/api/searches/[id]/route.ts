@@ -2,10 +2,13 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
+  DEFAULT_MAX_RESULTS,
   fetchDatasetItems,
+  getRunProgress,
   getRunStatus,
   mapApifyItemToLead,
 } from "@/lib/apify";
+import { categoryMatchesSlug, normalizeCategory } from "@/lib/categories";
 import type { Lead, Search } from "@/lib/types";
 
 export async function GET(
@@ -35,11 +38,24 @@ export async function GET(
   }
 
   let current = search as Search;
+  let progress: { found: number; target: number } | null = null;
 
   // If still running, ask Apify and finalize when done
   if (current.status === "running" && current.apify_run_id) {
-    const finalized = await maybeFinalize(current);
-    if (finalized) current = finalized;
+    const { status: runStatus, itemCount } = await getRunProgress(
+      current.apify_run_id,
+    );
+    if (
+      runStatus === "SUCCEEDED" ||
+      runStatus === "FAILED" ||
+      runStatus === "ABORTED" ||
+      runStatus === "TIMED-OUT"
+    ) {
+      const finalized = await maybeFinalize(current);
+      if (finalized) current = finalized;
+    } else {
+      progress = { found: itemCount, target: DEFAULT_MAX_RESULTS };
+    }
   }
 
   const { data: linkRows } = await supabase
@@ -57,7 +73,7 @@ export async function GET(
     leads = (leadData ?? []) as Lead[];
   }
 
-  return NextResponse.json({ search: current, leads });
+  return NextResponse.json({ search: current, leads, progress });
 }
 
 async function maybeFinalize(search: Search): Promise<Search | null> {
@@ -91,7 +107,26 @@ async function maybeFinalize(search: Search): Promise<Search | null> {
 
     // Fetch items, upsert leads, link via search_leads
     const rawItems = await fetchDatasetItems(defaultDatasetId);
-    const leads = rawItems
+
+    // Google Maps mixes unrelated places into search results (e.g. supermarkets
+    // when searching for restaurants). If the user's category maps to a known
+    // slug, drop items whose categories don't match. Free-form categories that
+    // don't normalize to any slug are left unfiltered.
+    const targetSlug = normalizeCategory(search.category);
+    const filteredItems = targetSlug
+      ? rawItems.filter((raw) => {
+          const it = raw as { categoryName?: string; categories?: string[] };
+          const cats = [it.categoryName, ...(it.categories ?? [])];
+          return categoryMatchesSlug(cats, targetSlug);
+        })
+      : rawItems;
+
+    console.log(
+      `[searches/${search.id}] category="${search.category}" slug=${targetSlug ?? "(none)"} ` +
+        `apify=${rawItems.length} kept=${filteredItems.length} dropped=${rawItems.length - filteredItems.length}`,
+    );
+
+    const leads = filteredItems
       .map((it) => mapApifyItemToLead(it, search.city, search.province))
       .filter((l): l is Lead => l != null);
 
