@@ -32,6 +32,17 @@ export interface Lead {
   created_at: string;
 }
 
+export interface LeadSearchSource {
+  id: string;
+  city: string;
+  category: string;
+  created_at: string;
+}
+
+export interface LeadWithSources extends Lead {
+  sources: LeadSearchSource[];
+}
+
 export interface Search {
   id: string;
   province: string;
@@ -53,6 +64,7 @@ export interface ScrapeRequestBody {
   city: string;
   category: string;
   radiusKm: number;
+  scrapeContacts?: boolean;
 }
 
 export interface SearchStatusResponse {

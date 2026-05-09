@@ -69,3 +69,60 @@ export function getCategoryLabel(slug: string | null | undefined): string {
   if (!slug) return "—";
   return CATEGORIES.find((c) => c.slug === slug)?.label_es ?? slug;
 }
+
+// True if any of the raw category strings (Google's categoryName + categories[])
+// normalizes to the target slug. Used to drop irrelevant places that Google
+// Maps mixes into search results (e.g. supermarkets when searching restaurants).
+export function categoryMatchesSlug(
+  rawCategories: (string | null | undefined)[],
+  targetSlug: string,
+): boolean {
+  for (const raw of rawCategories) {
+    if (!raw) continue;
+    if (normalizeCategory(raw) === targetSlug) return true;
+  }
+  return false;
+}
+
+// Apify categoryFilterWords must be values from its own predefined list (English only).
+// Each slug maps to the subset of Apify-allowed values that best represents it.
+// Slugs with no reliable Apify equivalent are omitted — filter is skipped for them.
+const APIFY_FILTER_WORDS: Record<string, string[]> = {
+  restaurant:       ["restaurant"],
+  bar:              ["bar", "pub", "gastropub", "brewpub"],
+  cafe:             ["cafe", "bistro"],
+  bakery:           ["bakery", "patisserie"],
+  supermarket:      ["supermarket", "hypermarket"],
+  pharmacy:         ["pharmacy", "parapharmacy"],
+  hospital:         ["hospital", "clinic"],
+  gym:              ["gym", "sports"],
+  beauty_salon:     ["beauty parlour", "beauty salon", "spa"],
+  hair_salon:       ["hairdresser", "barber shop"],
+  car_repair:       ["mechanic"],
+  car_dealer:       ["cars"],
+  hotel:            ["hotel", "motel", "hostel", "lodge"],
+  dentist:          ["dentist"],
+  doctor:           ["doctor"],
+  veterinarian:     ["veterinarian"],
+  school:           ["school", "college"],
+  electronics:      ["electronics"],
+  bank:             ["bank"],
+  florist:          ["florist"],
+  lawyer:           ["lawyer"],
+  accountant:       ["accountant"],
+  photography:      ["photographer"],
+  construction:     ["construction"],
+  marketing_agency: ["advertising agency", "advertising service"],
+  design_agency:    ["design"],
+  travel_agency:    ["travel"],
+};
+
+// Returns Apify-approved English filter words for the category the user's input
+// maps to, or null if no mapping exists (filter is skipped in that case).
+export function getApifyFilterWords(
+  raw: string | null | undefined,
+): string[] | null {
+  const slug = normalizeCategory(raw);
+  if (!slug) return null;
+  return APIFY_FILTER_WORDS[slug] ?? null;
+}

@@ -14,6 +14,7 @@ export function Navbar({ leadCount }: NavbarProps) {
   const tabs = [
     { href: "/search", label: "Nueva búsqueda" },
     { href: "/leads", label: "Mis leads", count: leadCount },
+    { href: "/api-settings", label: "API" },
   ];
 
   return (

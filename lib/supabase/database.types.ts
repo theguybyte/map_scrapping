@@ -91,6 +91,20 @@ export type Database = {
         Update: Partial<{ search_id: string; place_id: string }>;
         Relationships: [];
       };
+      app_settings: {
+        Row: {
+          id: boolean;
+          apify_api_token: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: boolean;
+          apify_api_token?: string | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["app_settings"]["Insert"]>;
+        Relationships: [];
+      };
       cities: {
         Row: {
           id: number;
