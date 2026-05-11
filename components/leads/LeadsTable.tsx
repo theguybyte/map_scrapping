@@ -52,11 +52,14 @@ export function LeadsTable({ leads }: LeadsTableProps) {
   }
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white overflow-hidden">
-      <div className="overflow-auto">
+    <div className="rounded-lg border border-zinc-200 bg-white">
+      <div
+        className="overflow-auto max-h-[calc(100dvh-280px)] min-h-[320px] rounded-lg"
+        style={{ scrollbarGutter: "stable" }}
+      >
         <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-zinc-50 text-xs text-zinc-500 uppercase tracking-wide">
+          <thead className="sticky top-0 z-10 bg-zinc-50 shadow-[inset_0_-1px_0_0_rgb(228_228_231)]">
+            <tr className="text-xs text-zinc-500 uppercase tracking-wide">
               <th className="px-4 py-3 text-left">Empresa</th>
               <th className="px-4 py-3 text-left">Provincia</th>
               <th className="px-4 py-3 text-left">Categoría</th>

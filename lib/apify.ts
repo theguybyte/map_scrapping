@@ -170,6 +170,19 @@ export function mapApifyItemToLead(
       ? "temporarily_closed"
       : "operational";
 
+  // Apify exposes both a primary `categoryName` and a `categories[]` array.
+  // Try them all in order so a lead isn't left uncategorized when only a
+  // secondary category matches our alias map.
+  const allCats = [it.categoryName, ...(it.categories ?? [])];
+  let normalizedSlug: string | null = null;
+  for (const c of allCats) {
+    const slug = normalizeCategory(c);
+    if (slug) {
+      normalizedSlug = slug;
+      break;
+    }
+  }
+
   return {
     place_id: it.placeId,
     name: it.title,
@@ -184,7 +197,7 @@ export function mapApifyItemToLead(
     rating: typeof it.totalScore === "number" ? it.totalScore : null,
     review_count: typeof it.reviewsCount === "number" ? it.reviewsCount : null,
     category: it.categoryName ?? it.categories?.[0] ?? null,
-    category_id: normalizeCategory(it.categoryName ?? it.categories?.[0]),
+    category_id: normalizedSlug,
     latitude: it.location?.lat ?? null,
     longitude: it.location?.lng ?? null,
     google_maps_url: it.url ?? null,

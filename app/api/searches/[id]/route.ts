@@ -8,7 +8,7 @@ import {
   getRunStatus,
   mapApifyItemToLead,
 } from "@/lib/apify";
-import { categoryMatchesSlug, normalizeCategory } from "@/lib/categories";
+import { normalizeCategory } from "@/lib/categories";
 import type { Lead, Search } from "@/lib/types";
 
 export async function GET(
@@ -105,28 +105,19 @@ async function maybeFinalize(search: Search): Promise<Search | null> {
       return null; // still running
     }
 
-    // Fetch items, upsert leads, link via search_leads
+    // Fetch items, upsert leads, link via search_leads.
+    // Apify already pre-filters server-side via categoryFilterWords (see
+    // lib/apify.ts), so no client-side category filter is needed here — and a
+    // second pass against our Spanish alias map would over-drop English Google
+    // Maps categories like "website designer" / "computer consultant".
     const rawItems = await fetchDatasetItems(defaultDatasetId);
-
-    // Google Maps mixes unrelated places into search results (e.g. supermarkets
-    // when searching for restaurants). If the user's category maps to a known
-    // slug, drop items whose categories don't match. Free-form categories that
-    // don't normalize to any slug are left unfiltered.
     const targetSlug = normalizeCategory(search.category);
-    const filteredItems = targetSlug
-      ? rawItems.filter((raw) => {
-          const it = raw as { categoryName?: string; categories?: string[] };
-          const cats = [it.categoryName, ...(it.categories ?? [])];
-          return categoryMatchesSlug(cats, targetSlug);
-        })
-      : rawItems;
 
     console.log(
-      `[searches/${search.id}] category="${search.category}" slug=${targetSlug ?? "(none)"} ` +
-        `apify=${rawItems.length} kept=${filteredItems.length} dropped=${rawItems.length - filteredItems.length}`,
+      `[searches/${search.id}] category="${search.category}" slug=${targetSlug ?? "(none)"} apify=${rawItems.length}`,
     );
 
-    const leads = filteredItems
+    const leads = rawItems
       .map((it) => mapApifyItemToLead(it, search.city, search.province))
       .filter((l): l is Lead => l != null);
 

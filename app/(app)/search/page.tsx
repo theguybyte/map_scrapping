@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LeafletMap } from "@/components/map/LeafletMap";
 import {
   SearchSidebar,
@@ -14,11 +15,13 @@ import type { Lead, Search } from "@/lib/types";
 const DEFAULT_PROVINCE = "San Luis";
 
 export default function SearchPage() {
+  const router = useRouter();
   const defaultProv = getProvince(DEFAULT_PROVINCE) ?? PROVINCES[0];
 
   const [form, setForm] = useState<SearchFormState>({
     province: defaultProv.name,
     city: defaultProv.capital,
+    cityConfirmed: true,
     category: "",
     radiusKm: defaultProv.defaultRadius,
     scrapeContacts: false,
@@ -48,11 +51,6 @@ export default function SearchPage() {
 
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cacheTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Always-current form ref so async callbacks can detect stale state
-  const formRef = useRef(form);
-  formRef.current = form;
 
   // Recenter synchronously with form changes so center + radiusKm land in the
   // same render — otherwise MapRecenter fires fitBounds twice (stale center +
@@ -67,69 +65,6 @@ export default function SearchPage() {
     }
     setForm(next);
   }
-
-  // Geocode non-capital city (debounced)
-  useEffect(() => {
-    if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
-    if (!form.province || !form.city.trim()) return;
-
-    const prov = getProvince(form.province);
-    if (prov && form.city.toLowerCase() === prov.capital.toLowerCase()) {
-      return; // already handled
-    }
-
-    const ac = new AbortController();
-    const reqCity = form.city;
-    const reqProvince = form.province;
-    geocodeTimer.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/geocode?city=${encodeURIComponent(reqCity)}&province=${encodeURIComponent(reqProvince)}`,
-          { signal: ac.signal },
-        );
-        if (!res.ok) {
-          console.log("[geocode] response not ok", res.status);
-          return;
-        }
-        const data = (await res.json()) as {
-          lat: number;
-          lng: number;
-          radiusKm?: number;
-        };
-        const current = formRef.current;
-        if (
-          ac.signal.aborted ||
-          current.city !== reqCity ||
-          current.province !== reqProvince
-        ) {
-          console.log(
-            `[geocode] discarding stale response for ${reqCity}, ${reqProvince} (current: ${current.city}, ${current.province})`,
-            data,
-          );
-          return;
-        }
-        console.log("[geocode] response", data);
-        setCenter({ lat: data.lat, lng: data.lng });
-        if (typeof data.radiusKm === "number") {
-          console.log("[geocode] applying radiusKm =", data.radiusKm);
-          setForm((prev) => ({ ...prev, radiusKm: data.radiusKm! }));
-        } else {
-          console.log("[geocode] no radiusKm in response");
-        }
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") {
-          console.log("[geocode] aborted (province/city changed)");
-          return;
-        }
-        console.log("[geocode] error", err);
-      }
-    }, 800);
-
-    return () => {
-      if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
-      ac.abort();
-    };
-  }, [form.city, form.province]);
 
   // Cache check (debounced)
   useEffect(() => {
@@ -191,6 +126,18 @@ export default function SearchPage() {
         if (data.search.status === "completed") {
           setStatus("completed");
           setProgress(null);
+          router.refresh();
+          const completedAt = new Date(
+            data.search.completed_at ?? data.search.created_at,
+          );
+          setCacheHit({
+            searchId: data.search.id,
+            daysAgo: Math.floor(
+              (Date.now() - completedAt.getTime()) / (1000 * 60 * 60 * 24),
+            ),
+            totalResults: data.search.total_results ?? 0,
+            cachedRadiusKm: data.search.radius_km,
+          });
           return;
         }
         if (data.search.status === "failed") {
@@ -283,6 +230,12 @@ export default function SearchPage() {
         state={form}
         onChange={handleFormChange}
         onStart={handleStart}
+        onCityCoords={(lat, lng, radiusKm) => {
+          setCenter({ lat, lng });
+          if (typeof radiusKm === "number") {
+            setForm((prev) => ({ ...prev, radiusKm }));
+          }
+        }}
         isRunning={isRunning}
         cacheHit={cacheHit}
       />

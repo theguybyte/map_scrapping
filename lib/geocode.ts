@@ -75,6 +75,112 @@ async function nominatimSearch(
   return { lat, lng, radiusKm };
 }
 
+export interface CitySuggestion {
+  name: string;
+  lat: number;
+  lng: number;
+  radiusKm?: number;
+}
+
+function stripAccents(s: string): string {
+  return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
+export async function suggestCities(
+  query: string,
+  province: string,
+): Promise<CitySuggestion[]> {
+  // 1. Supabase cache — instant, has radiusKm, but may contain stale partial names
+  const supabase = createSupabaseAdminClient();
+  const { data: cached } = await supabase
+    .from("cities")
+    .select("name,lat,lng,radius_km")
+    .ilike("province", province)
+    .ilike("name", `${query}%`)
+    .limit(10);
+
+  // Deduplicate cache by coords, keeping the longest name per coord pair
+  const coordMap = new Map<string, CitySuggestion>();
+  for (const r of cached ?? []) {
+    const key = `${Number(r.lat)},${Number(r.lng)}`;
+    const entry: CitySuggestion = {
+      name: r.name,
+      lat: Number(r.lat),
+      lng: Number(r.lng),
+      radiusKm: r.radius_km != null ? Number(r.radius_km) : undefined,
+    };
+    const existing = coordMap.get(key);
+    if (!existing || entry.name.length > existing.name.length) coordMap.set(key, entry);
+  }
+  const cacheResults = Array.from(coordMap.values());
+
+  // 2. Argentine government geolocation API — canonical names, true prefix search, no key needed
+  let apiResults: CitySuggestion[] = [];
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 4000);
+  try {
+    const url = new URL("https://apis.datos.gob.ar/georef/api/localidades");
+    url.searchParams.set("nombre", query);
+    url.searchParams.set("provincia", province);
+    url.searchParams.set("max", "8");
+    url.searchParams.set("campos", "id,nombre,centroide");
+    const res = await fetch(url, {
+      signal: ac.signal,
+      headers: { "User-Agent": "LeadMap/1.0 (joseimaz1@gmail.com)" },
+    });
+    if (res.ok) {
+      const data = (await res.json()) as {
+        localidades?: Array<{ nombre: string; centroide: { lat: number; lon: number } }>;
+      };
+      apiResults = (data.localidades ?? []).map((loc) => ({
+        name: loc.nombre,
+        lat: loc.centroide.lat,
+        lng: loc.centroide.lon,
+      }));
+    }
+  } catch {
+    // Government API unavailable — fall back to cache only
+  } finally {
+    clearTimeout(timer);
+  }
+
+  // 3. Merge: API results are authoritative; cache enriches with radiusKm.
+  //    Cache entries whose name is a word-boundary prefix of any API result are
+  //    stale partial names (e.g. "Santa rosa" vs "Santa Rosa del Conlara") — drop them.
+  const apiNormalized = apiResults.map((r) => stripAccents(r.name));
+
+  const merged: CitySuggestion[] = [];
+  const seenName = new Set<string>();
+  const seenCoords = new Set<string>();
+
+  for (const api of apiResults) {
+    const norm = stripAccents(api.name);
+    const coordKey = `${api.lat},${api.lng}`;
+    if (seenName.has(norm) || seenCoords.has(coordKey)) continue;
+    // Enrich with radiusKm from cache if an entry with the same normalized name exists
+    const cached = cacheResults.find((c) => stripAccents(c.name) === norm);
+    merged.push({ ...api, radiusKm: cached?.radiusKm });
+    seenName.add(norm);
+    seenCoords.add(coordKey);
+    if (merged.length >= 5) break;
+  }
+
+  for (const c of cacheResults) {
+    if (merged.length >= 5) break;
+    const norm = stripAccents(c.name);
+    const coordKey = `${c.lat},${c.lng}`;
+    if (seenName.has(norm) || seenCoords.has(coordKey)) continue;
+    // Drop stale partial names: if this name is a word-boundary prefix of any API result,
+    // the API already returned the real city with the full name.
+    if (apiNormalized.some((n) => n.startsWith(norm + " "))) continue;
+    merged.push(c);
+    seenName.add(norm);
+    seenCoords.add(coordKey);
+  }
+
+  return merged;
+}
+
 export async function resolveCityCoords(
   city: string,
   province: string,

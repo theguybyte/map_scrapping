@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { StatsBar } from "@/components/leads/StatsBar";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { ExportButtons } from "@/components/leads/ExportButtons";
+import { CityAutocomplete } from "@/components/search/CityAutocomplete";
 import { PROVINCES } from "@/lib/argentina";
 import { CATEGORIES } from "@/lib/categories";
 import type { LeadWithSources } from "@/lib/types";
@@ -92,7 +93,7 @@ export default function LeadsPage() {
       <StatsBar {...stats} />
 
       <div className="rounded-lg border border-zinc-200 bg-white p-4 flex flex-wrap gap-3 items-end">
-        <div className="space-y-1 flex-1 min-w-[180px]">
+        <div className="space-y-1 flex-1 basis-[220px] min-w-[180px]">
           <Label htmlFor="q">Buscar</Label>
           <Input
             id="q"
@@ -101,11 +102,12 @@ export default function LeadsPage() {
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
-        <div className="space-y-1 min-w-[180px]">
+        <div className="space-y-1 w-[180px] shrink-0">
           <Label>Provincia</Label>
           <Select
             value={province}
             onChange={(e) => setProvince(e.target.value)}
+            className="w-full"
           >
             <option value="">Todas</option>
             {PROVINCES.map((p) => (
@@ -115,20 +117,22 @@ export default function LeadsPage() {
             ))}
           </Select>
         </div>
-        <div className="space-y-1 min-w-[160px]">
+        <div className="space-y-1 w-[180px] shrink-0">
           <Label htmlFor="city">Ciudad</Label>
-          <Input
+          <CityAutocomplete
             id="city"
-            placeholder="Ciudad…"
+            province={province}
             value={city}
-            onChange={(e) => setCity(e.target.value)}
+            confirmed={false}
+            onChange={(next) => setCity(next)}
           />
         </div>
-        <div className="space-y-1 min-w-[200px]">
+        <div className="space-y-1 w-[200px] shrink-0">
           <Label>Categoría</Label>
           <Select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
+            className="w-full"
           >
             <option value="">Todas</option>
             {categories.map((c) => (
@@ -138,11 +142,12 @@ export default function LeadsPage() {
             ))}
           </Select>
         </div>
-        <div className="space-y-1 min-w-[140px]">
+        <div className="space-y-1 w-[140px] shrink-0">
           <Label>Rating</Label>
           <Select
             value={minRating}
             onChange={(e) => setMinRating(e.target.value)}
+            className="w-full"
           >
             <option value="">Cualquiera</option>
             <option value="3">3+</option>

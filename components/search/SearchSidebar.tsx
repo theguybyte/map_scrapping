@@ -6,12 +6,14 @@ import { PROVINCES } from "@/lib/argentina";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CityAutocomplete } from "@/components/search/CityAutocomplete";
 import { Select } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 
 export interface SearchFormState {
   province: string;
   city: string;
+  cityConfirmed: boolean;
   category: string;
   radiusKm: number;
   scrapeContacts: boolean;
@@ -28,6 +30,7 @@ interface SearchSidebarProps {
   state: SearchFormState;
   onChange: (next: SearchFormState) => void;
   onStart: (force: boolean) => void;
+  onCityCoords?: (lat: number, lng: number, radiusKm?: number) => void;
   isRunning: boolean;
   cacheHit: CacheHit | null;
 }
@@ -36,6 +39,7 @@ export function SearchSidebar({
   state,
   onChange,
   onStart,
+  onCityCoords,
   isRunning,
   cacheHit,
 }: SearchSidebarProps) {
@@ -67,6 +71,7 @@ export function SearchSidebar({
                 ...state,
                 province: e.target.value,
                 city: prov?.capital ?? state.city,
+                cityConfirmed: true, // capital is auto-confirmed
                 radiusKm: prov?.defaultRadius ?? state.radiusKm,
               });
             }}
@@ -82,11 +87,15 @@ export function SearchSidebar({
 
         <div className="space-y-1.5">
           <Label htmlFor="city">Ciudad / localidad</Label>
-          <Input
+          <CityAutocomplete
             id="city"
-            placeholder="Ej. Villa Mercedes"
+            province={state.province}
             value={state.city}
-            onChange={(e) => onChange({ ...state, city: e.target.value })}
+            confirmed={state.cityConfirmed}
+            onChange={(city, coords) => {
+              onChange({ ...state, city, cityConfirmed: Boolean(coords) });
+              if (coords) onCityCoords?.(coords.lat, coords.lng, coords.radiusKm);
+            }}
           />
         </div>
 
@@ -182,7 +191,7 @@ export function SearchSidebar({
             disabled={
               isRunning ||
               !state.province ||
-              !state.city.trim() ||
+              !state.cityConfirmed ||
               !state.category.trim()
             }
             onClick={() => onStart(Boolean(cacheHit))}
