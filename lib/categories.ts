@@ -24,7 +24,7 @@ export const CATEGORIES: Category[] = [
   { slug: "veterinarian",   label_es: "Veterinaria",                 aliases: ["veterinaria","veterinario","clínica veterinaria","clinica veterinaria","pet shop","veterinaria y pet shop"] },
   { slug: "school",         label_es: "Escuela / Instituto",         aliases: ["escuela","colegio","instituto educativo","instituto","jardín de infantes","jardin de infantes","jardín maternal","jardin maternal","centro educativo"] },
   { slug: "clothing_store", label_es: "Tienda de ropa",              aliases: ["tienda de ropa","ropa","indumentaria","boutique","moda","local de ropa"] },
-  { slug: "electronics",    label_es: "Electrónica / Tecnología",    aliases: ["electrónica","electronica","tecnología","tecnologia","computadoras","celulares","telefonía","telefonia"] },
+  { slug: "electronics",    label_es: "Electrónica / Tecnología",    aliases: ["electrónica","electronica","tecnología","tecnologia","computadoras","celulares","telefonía","telefonia","informática","informatica","ordenadores","computación","computacion"] },
   { slug: "hardware_store", label_es: "Ferretería / Corralón",       aliases: ["ferretería","ferreteria","corralón","corralon","materiales de construcción","materiales de construccion","pinturería","pintureria"] },
   { slug: "travel_agency",  label_es: "Agencia de viajes",           aliases: ["agencia de viajes","turismo","tour operador","agencia de turismo"] },
   { slug: "bank",           label_es: "Banco / Finanzas",            aliases: ["banco","entidad bancaria","caja de crédito","caja de credito","financiera","casa de cambio"] },
@@ -70,20 +70,6 @@ export function getCategoryLabel(slug: string | null | undefined): string {
   return CATEGORIES.find((c) => c.slug === slug)?.label_es ?? slug;
 }
 
-// True if any of the raw category strings (Google's categoryName + categories[])
-// normalizes to the target slug. Used to drop irrelevant places that Google
-// Maps mixes into search results (e.g. supermarkets when searching restaurants).
-export function categoryMatchesSlug(
-  rawCategories: (string | null | undefined)[],
-  targetSlug: string,
-): boolean {
-  for (const raw of rawCategories) {
-    if (!raw) continue;
-    if (normalizeCategory(raw) === targetSlug) return true;
-  }
-  return false;
-}
-
 // Apify categoryFilterWords must be values from its own predefined list (English only).
 // Each slug maps to the subset of Apify-allowed values that best represents it.
 // Slugs with no reliable Apify equivalent are omitted — filter is skipped for them.
@@ -99,7 +85,7 @@ const APIFY_FILTER_WORDS: Record<string, string[]> = {
   beauty_salon:     ["beauty parlour", "beauty salon", "spa"],
   hair_salon:       ["hairdresser", "barber shop"],
   car_repair:       ["mechanic"],
-  car_dealer:       ["cars"],
+  car_dealer:       ["car dealer"],
   hotel:            ["hotel", "motel", "hostel", "lodge"],
   dentist:          ["dentist"],
   doctor:           ["doctor"],
@@ -113,8 +99,14 @@ const APIFY_FILTER_WORDS: Record<string, string[]> = {
   photography:      ["photographer"],
   construction:     ["construction"],
   marketing_agency: ["advertising agency", "advertising service"],
-  design_agency:    ["design"],
+  design_agency:    ["design agency", "design"],
   travel_agency:    ["travel"],
+  web_development:  ["software company", "website designer", "web designer", "computer consultant", "it support and services", "computer support and services"],
+  real_estate:      ["real estate agency", "real estate agent", "real estate consultant", "property management company", "estate agent"],
+  clothing_store:   ["clothing store", "boutique", "shoe store", "fashion accessories store"],
+  hardware_store:   ["hardware store", "hardware shop", "building materials store", "building materials supplier", "paint store"],
+  gas_station:      ["gas station", "petrol station"],
+  yoga:             ["yoga studio", "pilates studio"],
 };
 
 // Returns Apify-approved English filter words for the category the user's input
