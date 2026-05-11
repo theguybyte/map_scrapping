@@ -9,7 +9,7 @@ const ACTOR_ID = "nwua9Gu5YrADL7ZDj"; // Apify Google Maps Scraper (compass/craw
 
 // Default ceiling sent as maxCrawledPlacesPerSearch. Exposed so the UI can show
 // progress as "found / target" while a run is in flight.
-export const DEFAULT_MAX_RESULTS = 200;
+export const DEFAULT_MAX_RESULTS = 500;
 
 async function getClient(): Promise<ApifyClient> {
   const entry = await getApifyToken();
