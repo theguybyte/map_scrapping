@@ -114,6 +114,7 @@ export type Database = {
           name: string;
           lat: number;
           lng: number;
+          radius_km: number | null;
           source: string;
           created_at: string;
         };
@@ -123,6 +124,7 @@ export type Database = {
           name: string;
           lat: number;
           lng: number;
+          radius_km?: number | null;
           source: string;
           created_at?: string;
         };
