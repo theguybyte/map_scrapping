@@ -54,6 +54,7 @@ export type Database = {
           rating: number | null;
           review_count: number | null;
           category: string | null;
+          category_id: string | null;
           latitude: number | null;
           longitude: number | null;
           google_maps_url: string | null;
@@ -75,6 +76,7 @@ export type Database = {
           rating?: number | null;
           review_count?: number | null;
           category?: string | null;
+          category_id?: string | null;
           latitude?: number | null;
           longitude?: number | null;
           google_maps_url?: string | null;
