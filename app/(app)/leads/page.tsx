@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { StatsBar } from "@/components/leads/StatsBar";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { ExportButtons } from "@/components/leads/ExportButtons";
 import { CityAutocomplete } from "@/components/search/CityAutocomplete";
+import { MultiSelectAutocomplete } from "@/components/ui/multi-select-autocomplete";
 import { PROVINCES } from "@/lib/argentina";
 import { CATEGORIES } from "@/lib/categories";
 import type { LeadWithSources } from "@/lib/types";
@@ -37,12 +38,35 @@ export default function LeadsPage() {
   const [city, setCity] = useState("");
   const [category, setCategory] = useState("");
   const [minRating, setMinRating] = useState("");
+  const [origins, setOrigins] = useState<string[]>([]);
+  const [originOptions, setOriginOptions] = useState<string[]>([]);
   const [page, setPage] = useState(1);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+
+  // Origins key — stable string for dependency tracking
+  const originsKey = origins.join("|");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await fetch("/api/searches/origins");
+      if (!res.ok) return;
+      const data = (await res.json()) as { origins: string[] };
+      if (!cancelled) setOriginOptions(data.origins ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Reset to page 1 whenever filters change
   useEffect(() => {
     setPage(1);
-  }, [q, province, city, category, minRating]);
+  }, [q, province, city, category, minRating, originsKey]);
+
+  useEffect(() => {
+    tableScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [page]);
 
   useEffect(() => {
     const handle = setTimeout(async () => {
@@ -53,6 +77,7 @@ export default function LeadsPage() {
       if (city) params.set("city", city);
       if (category) params.set("category", category);
       if (minRating) params.set("minRating", minRating);
+      for (const o of origins) params.append("origins", o);
       params.set("page", String(page));
 
       const res = await fetch(`/api/leads?${params.toString()}`);
@@ -69,7 +94,7 @@ export default function LeadsPage() {
       setLoading(false);
     }, 250);
     return () => clearTimeout(handle);
-  }, [q, province, city, category, minRating, page]);
+  }, [q, province, city, category, minRating, originsKey, page]);
 
   const categories = useMemo(() => {
     const slugs = new Set<string>();
@@ -155,6 +180,17 @@ export default function LeadsPage() {
             <option value="4.5">4.5+</option>
           </Select>
         </div>
+        <div className="space-y-1 flex-1 basis-[260px] min-w-[220px]">
+          <Label htmlFor="origins">Origen</Label>
+          <MultiSelectAutocomplete
+            id="origins"
+            options={originOptions}
+            value={origins}
+            onChange={setOrigins}
+            placeholder="Todos los orígenes"
+            emptyMessage="Sin orígenes"
+          />
+        </div>
         <div className="ml-auto">
           <ExportButtons leads={leads} />
         </div>
@@ -165,30 +201,50 @@ export default function LeadsPage() {
           Cargando leads…
         </div>
       ) : (
-        <LeadsTable leads={leads} />
+        <LeadsTable leads={leads} scrollContainerRef={tableScrollRef} />
       )}
 
       <div className="flex items-center justify-between text-sm text-zinc-500">
-        <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1 || loading}
-          className="px-3 py-1.5 rounded border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Anterior
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPage(1)}
+            disabled={page === 1 || loading}
+            className="px-2 py-1.5 rounded border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Primera página"
+          >
+            «
+          </button>
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1 || loading}
+            className="px-3 py-1.5 rounded border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Anterior
+          </button>
+        </div>
         <span>
           Página {page} de {totalPages}
           {filteredTotal > 0 && (
             <span className="ml-2 text-zinc-400">({filteredTotal} resultados)</span>
           )}
         </span>
-        <button
-          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          disabled={page >= totalPages || loading}
-          className="px-3 py-1.5 rounded border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Siguiente
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages || loading}
+            className="px-3 py-1.5 rounded border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Siguiente
+          </button>
+          <button
+            onClick={() => setPage(totalPages)}
+            disabled={page >= totalPages || loading}
+            className="px-2 py-1.5 rounded border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Última página"
+          >
+            »
+          </button>
+        </div>
       </div>
     </div>
   );
