@@ -6,10 +6,11 @@ import { es } from "date-fns/locale";
 import type { LeadWithSources } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { getProvincePillColor } from "@/lib/argentina";
-import { getCategoryLabel } from "@/lib/categories";
+import { getCategoryLabel, getOriginPillColor } from "@/lib/categories";
 
 interface LeadsTableProps {
   leads: LeadWithSources[];
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 function isPresent(v: string | null | undefined): v is string {
@@ -42,7 +43,7 @@ function FacebookIcon({ className }: { className?: string }) {
   );
 }
 
-export function LeadsTable({ leads }: LeadsTableProps) {
+export function LeadsTable({ leads, scrollContainerRef }: LeadsTableProps) {
   if (leads.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-zinc-300 bg-white p-12 text-center text-sm text-zinc-500">
@@ -54,7 +55,8 @@ export function LeadsTable({ leads }: LeadsTableProps) {
   return (
     <div className="rounded-lg border border-zinc-200 bg-white">
       <div
-        className="overflow-auto max-h-[calc(100dvh-280px)] min-h-[320px] rounded-lg"
+        ref={scrollContainerRef}
+        className="overflow-auto max-h-[calc(100dvh-200px)] min-h-[320px] rounded-lg"
         style={{ scrollbarGutter: "stable" }}
       >
         <table className="w-full text-sm">
@@ -185,7 +187,7 @@ export function LeadsTable({ leads }: LeadsTableProps) {
                         return (
                           <Badge
                             key={s.id}
-                            className="bg-zinc-100 text-zinc-700 max-w-56"
+                            className={`${getOriginPillColor(s.category)} max-w-56`}
                             title={text}
                           >
                             <span className="truncate">{text}</span>
